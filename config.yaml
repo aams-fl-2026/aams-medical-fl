@@ -1,0 +1,40 @@
+system:
+  num_devices: 30
+  seed: 42
+  device: cpu
+
+federated:
+  num_jobs: 1
+  num_rounds: 200
+  local_epochs: 1
+  batch_size: 64
+  learning_rate: 0.01
+  devices_per_round: 10
+
+devices:
+  min_capability: 0.5
+  max_capability: 2.0
+  min_fluctuation: 0.1
+  max_fluctuation: 1.0
+
+scheduler:
+  method: random
+  alpha: 0.5
+  beta: 0.5
+  
+data:
+  distribution: non_iid
+  num_classes_per_device: 2
+  datasets:
+    job_0: mnist
+
+models:
+  job_0: alexnet
+
+targets:
+  job_0_accuracy: 0.99
+
+paths:
+  data_dir: ./data
+  results_dir: ./results
+  logs_dir: ./logs
