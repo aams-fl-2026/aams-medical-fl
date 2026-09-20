@@ -567,7 +567,7 @@ def main():
         print(f'  Trend: {trend:+.4f} -> {"IMPROVING ✓" if trend > 0 else "NOT improving ✗"}')
     print('\nPaper expected (Table 2, non-IID):')
     print('  ResNet: 53.7%  CNN-B: 82.3%  AlexNet: 98.9%')
-    print('  RLDS should be fastest in simulated time')
+
     print('=' * 70)
 
 
