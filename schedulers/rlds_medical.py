@@ -34,6 +34,7 @@ from tqdm import tqdm
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from models.medical_models    import ResNet50Medical, DenseNet121Medical, VGG16Medical, DenseNet169Medical
 from models.resnet            import ResNet18
 from models.cnn_b             import CNNB
 from models.alexnet           import AlexNet
@@ -44,7 +45,7 @@ from models.non_iid_partition import create_non_iid_datasets
 from utils.time_simulator     import DeviceTimeSimulator
 
 
-NUM_JOBS = 4
+NUM_JOBS = 3
 
 try:
     import matplotlib
@@ -341,8 +342,8 @@ def main():
     NUM_DEVICES       = 100
     DEVICES_PER_ROUND = 10
     LOCAL_EPOCHS      = 5
-    BATCH_SIZE       = {0: 30,  1: 10,  2: 64,  3: 64,  4: 64}
-    LEARNING_RATE_FL = {0: 0.1, 1: 0.01, 2: 0.01, 3: 0.01, 4: 0.01}
+    BATCH_SIZE       = {0: 32,  1: 32,  2: 32,  3: 32}
+    LEARNING_RATE_FL = {0: 0.001, 1: 0.001, 2: 0.001, 3: 0.001}
     MAX_ROUNDS        = 5000
     N_PRETRAIN        = 5
     PRETRAIN_ROUNDS   = 50
@@ -350,18 +351,16 @@ def main():
     EPSILON_DECAY     = (0.05/0.3) ** (1.0/500)
 
     JOBS = {
-        0: ('resnet18', 'cifar10',          3, 32, 60.0,  8),
-        1: ('cnn_b',    'fashion_mnist',    1, 28, 85.0,  8),
-        2: ('alexnet',  'emnist_balanced',  1, 28, 70.0, 38),
-        3: ('alexnet',  'cifar100',         3, 32, 40.0, 80),
-        4: ('vgg11',    'emnist_letters',   1, 28, 85.0,  2),
+        0: ('resnet50med',    'organamnist',  1,  28, 78.0,  4),
+        1: ('densenet121med', 'bloodmnist',   3,  28, 80.0,  3),
+        2: ('vgg16med',       'tissuemnist',  1,  28, 50.0,  3),
+        3: ('densenet169med', 'dermamnist',   3,  28, 70.0,  7),
     }
     JOB_NAMES = {
-        0: 'ResNet18 + CIFAR-10',
-        1: 'CNN-B + FashionMNIST',
-        2: 'AlexNet + EMNIST-Balanced',
-        3: 'AlexNet + CIFAR-100',
-        4: 'VGG-11 + EMNIST-Letters',
+        0: 'ResNet-50 + OrganAMNIST',
+        1: 'DenseNet-121 + BloodMNIST',
+        2: 'VGG-16 + TissueMNIST',
+        3: 'DenseNet-169 + DermaMNIST',
     }
 
     torch.manual_seed(SEED); np.random.seed(SEED); random.seed(SEED)
@@ -393,7 +392,15 @@ def main():
     print('\nInitialising models...')
     servers = {}
     for j, (model_key, _, ch, sz, _, _) in JOBS.items():
-        if model_key == 'resnet18':
+        if model_key == 'resnet50med':
+            model = ResNet50Medical(num_classes=11, input_channels=ch)
+        elif model_key == 'densenet121med':
+            model = DenseNet121Medical(num_classes=8, input_channels=ch)
+        elif model_key == 'vgg16med':
+            model = VGG16Medical(num_classes=8, input_channels=ch)
+        elif model_key == 'densenet169med':
+            model = DenseNet169Medical(num_classes=7, input_channels=ch)
+        elif model_key == 'resnet18':
             dataset_name = JOBS[j][1]
             num_cls = 100 if dataset_name == 'cifar100' else 10
             model = ResNet18(num_classes=num_cls, input_channels=ch)
@@ -522,11 +529,11 @@ def main():
 
     os.makedirs('results', exist_ok=True)
     log['rewards'] = _reward_history
-    with open('results/rlds_log.json', 'w') as f:
+    with open('results/rlds_medical_log.json', 'w') as f:
         json.dump(log, f)
     print('  Log saved -> results/rlds_log.json')
 
-    total_time = sum(job_times.values())
+    total_time = sum(job_sim_time[j] if job_times[j] == 0.0 else job_times[j] for j in range(NUM_JOBS))
     print('\n' + '=' * 70)
     print('RLDS RESULTS')
     print('=' * 70)
@@ -535,7 +542,7 @@ def main():
     print('-' * 70)
     for j in range(NUM_JOBS):
         print(f'  {j}    {JOB_NAMES[j]:<28} '
-              f'{job_times[j]:>13.1f}   '
+              f'{(job_sim_time[j] if job_times[j]==0.0 else job_times[j]):>13.1f}   '
               f'{job_rounds[j]:>6}   '
               f'{job_final_acc[j]:>6.2f}%')
     print('-' * 70)
